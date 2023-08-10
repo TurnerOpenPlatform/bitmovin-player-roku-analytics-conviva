@@ -922,7 +922,7 @@ end function
     adMetadata = {}
     adMetadata.SetModeCaseSensitive()
     if breakInfo <> invalid
-        if breakInfo.GetStart() = 0 and self.convivaYoSpaceSession.GetSession()<> invalid and self.convivaYoSpaceSession.GetSession()._CLASSNAME <> "YSLiveSession"
+      if breakInfo.GetStart() = 0 and self.convivaYoSpaceSession.GetSessionProperties() <> invalid and self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession"
             adMetadata["podPosition"] = "Pre-roll"
         else
             adMetadata["podPosition"] = "Mid-roll"
@@ -967,73 +967,79 @@ end function
     self = globalAA.ConvivaClient
     adInfo = {}
     adInfo.SetModeCaseSensitive()
-    if self.convivaYoSpaceSession.GetSession() <> invalid
-      advert = self.convivaYoSpaceSession.GetSession().GetCurrentAdvert()
+    if self.convivaYoSpaceSession.GetSessionProperties() <> invalid
+      advert = self.convivaYoSpaceSession.GetCurrentAdvert()
       if (advert <> invalid)
-          if (advert.GetAdvert() <> invalid)
-              adInfo.adid = advert.GetAdvert().GetId()
-              if (advert.GetAdvert().GetAdSystem() <> invalid)
-                  adInfo.adsystem = advert.GetAdvert().GetAdSystem()
-              else
-                  adInfo.adsystem = "NA"
-              end if
-              adInfo.assetName = advert.GetAdvert().GetAdTitle()
-              adInfo.advertiser = advert.GetAdvert().GetAdvertiser()
-              ' CSR-4960 fix for sequence
-              if advert.GetAdvert().GetSequence() <> invalid
-                adInfo.sequence = ""+advert.GetAdvert().GetSequence()
-              end if
-              ' FR-2315
-              lineage = advert.GetAdvert().GetAdvertLineage()
-              if (lineage <> invalid) then
-                if( lineage.GetAdId() <> invalid) then
-                    adInfo.firstAdId = lineage.GetAdId()
-                else
-                    adInfo.firstAdId = "NA"
-                end if
-                if( lineage.GetAdSystem() <> invalid) then
-                    adInfo.firstAdSystem = lineage.GetAdSystem()
-                else
-                    adInfo.firstAdSystem = "NA"
-                end if
-                if( lineage.GetCreativeId() <> invalid) then
-                    adInfo.firstCreativeId = lineage.GetCreativeId()
-                else
-                    adInfo.firstCreativeId = "NA"
-                end if
-              end if
+          ' if (advert.GetAdvert() <> invalid)
+          adInfo.adid = advert.GetAdvertID()
+          adSystem = advert.GetProperty("AdSystem")
+          if(adSystem <> invalid) then
+              adInfo.adsystem = adSystem.GetValue()
+          else
+              adInfo.adsystem = "NA"
           end if
+          adInfo.assetName = advert.GetProperty("AdTitle").getValue()
+          ' adInfo.advertiser = advert.GetAdvert().GetAdvertiser()
+          if advert.GetProperty("Advertiser") <> invalid
+            adInfo.advertiser = advert.GetProperty("Advertiser").getValue()
+          end if
+          ' CSR-4960 fix for sequence
+          if advert.GetSequence() <> invalid
+            adInfo.sequence = advert.GetSequence().ToStr()
+          end if
+          ' FR-2315
+          lineage = advert.GetLineage()
+          if (lineage <> invalid) then
+            if( lineage.GetAdId() <> invalid) then
+                adInfo.firstAdId = lineage.GetAdId()
+            else
+                adInfo.firstAdId = "NA"
+            end if
+            if( lineage.GetAdSystem() <> invalid) then
+                adInfo.firstAdSystem = lineage.GetAdSystem()
+            else
+                adInfo.firstAdSystem = "NA"
+            end if
+            if( lineage.GetCreativeId() <> invalid) then
+                adInfo.firstCreativeId = lineage.GetCreativeId()
+            else
+                adInfo.firstCreativeId = "NA"
+            end if
+          end if
+          ' end if
           if advert.isFiller() = true
               adInfo.isSlate = "true"
           else
               adInfo.isSlate = "false"
           end if
 
-          if (advert.GetBreak()<> invalid and advert.GetBreak().GetStart() = 0 and self.convivaYoSpaceSession.GetSession()._CLASSNAME <> "YSLiveSession")
+          if (advert.getStart()<> invalid and advert.getStart() = 0 and self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession")
               adInfo.position = "Pre-roll"
           else
               adInfo.position = "Mid-roll"
           end if
-          if (advert.GetCreativeId()<> invalid)
-            adInfo.creativeId = advert.GetCreativeId()
+          if (advert.getLinearCreative().GetCreativeIdentifier() <> invalid)
+            adInfo.creativeId = advert.getLinearCreative().GetCreativeIdentifier()
           else
             adInfo.creativeId = "NA"
           end if
           adInfo.contentLength = Int(advert.GetDuration())
 
       end if
-      if self.convivaYoSpaceSession.GetSession()._CLASSNAME <> "YSLiveSession"
+      if self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession"
           adInfo.isLive = false
       else
           adInfo.isLive = true
       end if
     end if
-    adInfo.streamUrl = self.convivaYoSpaceSession.GetMasterPlaylist()
+    ' adInfo.streamUrl = self.convivaYoSpaceSession.GetMasterPlaylist()
+    adInfo.streamUrl = self.convivaYoSpaceSession.GetPlaybackUrl()
     adInfo.mediaFileApiFramework = "NA"
     adInfo.technology = "Server Side"
-    adInfo.streamFormat = self.convivaYoSpaceSession.GetSession().GetStreamType()
+    ' adInfo.streamFormat = self.convivaYoSpaceSession.GetSessionProperties().GetStreamType() 'if you uncomment this line you will get crash.
     adInfo.adManagerName = "YoSpace SDK"
-    adInfo.adManagerVersion = self.convivaYoSpaceSession.GetVersion()
+    ' adInfo.adManagerVersion = self.convivaYoSpaceSession.GetVersion()
+    adInfo.adManagerVersion = self.convivaYoSpaceSession.__version
     adInfo.adstitcher = "YoSpace CSM"
     adInfo.moduleName = "YS"
     self.reportAdStart(self.convivaYoSpaceVideoNode, adInfo)
