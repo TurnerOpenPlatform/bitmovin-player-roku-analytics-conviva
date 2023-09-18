@@ -889,10 +889,16 @@ end function
     ' and if we use old way to determine pod position there we cannot determine postroll ads
     ' so we are using old api to get pod position untill new api is resolved
     if breakInfo <> invalid
-        if breakInfo.GetStart() = 0 and self.convivaYoSpaceSession <> invalid and self.convivaYoSpaceSession._CLASSNAME <> "YoSessionLive"
-            adMetadata["podPosition"] = "Pre-roll"
+        ' adMetadata["podPosition"] = "Pre-roll"
+        ad_position = breakInfo.getPosition()
+        if ad_position = "preroll"
+          adMetadata["podPosition"] = "Pre-roll"
+        else if ad_position = "midroll"
+          adMetadata["podPosition"] = "Mid-roll"
+        else if ad_position = "postroll"
+          adMetadata["podPosition"] = "Post-roll"
         else
-            adMetadata["podPosition"] = "Mid-roll"
+          adMetadata["podPosition"] = ad_position
         end if
         adMetadata["podDuration"] = Int(breakInfo.GetDuration())
     end if
