@@ -981,10 +981,9 @@ end function
             adInfo.contentLength = Int(advert.GetDuration())
           
       end if
-      if self.convivaYoSpaceSession._CLASSNAME <> "YoSessionLive"
-          adInfo.isLive = false
-      else
-          adInfo.isLive = true
+      adInfo.isLive = false
+      if Instr(1, self.convivaYoSpaceSession._CLASSNAME, "Live") > 0
+        adInfo.isLive = true
       end if
     end if
     adInfo.streamUrl = self.convivaYoSpaceSession.getPlaybackurl().toStr()
