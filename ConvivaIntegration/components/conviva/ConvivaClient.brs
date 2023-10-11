@@ -943,10 +943,15 @@ end function
     ' and if we use old way to determine pod position there we cannot determine postroll ads
     ' so we are using old api to get pod position untill new api is resolved
     if breakInfo <> invalid
-        if breakInfo.GetStart() = 0 and self.convivaYoSpaceSession <> invalid and self.convivaYoSpaceSession._CLASSNAME <> "YoSessionLive"
-            adMetadata["podPosition"] = "Pre-roll"
+        ad_position = breakInfo.getPosition()
+        if ad_position = "preroll"
+          adMetadata["podPosition"] = "Pre-roll"
+        else if ad_position = "midroll"
+          adMetadata["podPosition"] = "Mid-roll"
+        else if ad_position = "postroll"
+          adMetadata["podPosition"] = "Post-roll"
         else
-            adMetadata["podPosition"] = "Mid-roll"
+          adMetadata["podPosition"] = ad_position
         end if
         adMetadata["podDuration"] = Int(breakInfo.GetDuration())
     end if
@@ -1105,10 +1110,15 @@ end function
           ' breakInfo.GetPosition() api introduced in v3 but api returns unknown always
           ' and if we use old way to determine pod position there we cannot determine postroll ads
           ' so we are using old api to get pod position untill new api is resolved
-          if (self.convivaYoSpaceSession.GetCurrentAdBreak() <> invalid and self.convivaYoSpaceSession.GetCurrentAdBreak().GetStart() = 0 and self.convivaYoSpaceSession._CLASSNAME <> "YoSessionLive")
-              adInfo.position = "Pre-roll"
+          ad_position = self.convivaYoSpaceSession.GetCurrentAdBreak().getPosition()
+          if ad_position = "preroll"
+            adInfo.position = "Pre-roll"
+          else if ad_position = "midroll"
+            adInfo.position = "Mid-roll"
+          else if ad_position = "postroll"
+            adInfo.position = "Post-roll"
           else
-              adInfo.position = "Mid-roll"
+            adInfo.position = ad_position
           end if
           if(advert.GetLinearCreative() <> invalid) then
             adInfo.creativeId = advert.GetLinearCreative().GetCreativeIdentifier()
@@ -1116,12 +1126,10 @@ end function
             adInfo.creativeId = "NA"
           end if
             adInfo.contentLength = Int(advert.GetDuration())
-
       end if
-      if self.convivaYoSpaceSession._CLASSNAME <> "YoSessionLive"
-          adInfo.isLive = false
-      else
-          adInfo.isLive = true
+      adInfo.isLive = false
+      if Instr(1, self.convivaYoSpaceSession._CLASSNAME, "Live") > 0
+        adInfo.isLive = true
       end if
     end if
     adInfo.streamUrl = self.convivaYoSpaceSession.GetStreamUrl().ToString()
