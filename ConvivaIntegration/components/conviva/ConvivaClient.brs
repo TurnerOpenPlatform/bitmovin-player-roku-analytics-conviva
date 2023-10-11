@@ -427,7 +427,7 @@ function ConvivaClientInstance(settings as object)
   ' TBD - incomplete implementation - Will never be used. Created the API to keep it consistent across all platforms
 	self.reportPlayerState = function( videoNode as object, playerState as string )
         self=m
-        self.log(videoNode, "ConvivaClient reportPlayerState",playerState )'HAPPY
+        self.log(videoNode, "ConvivaClient reportPlayerState")
 		return invalid
 	end function
 
@@ -525,6 +525,45 @@ function ConvivaClientInstance(settings as object)
         end if
     end function
 
+  ' Reports Audio Language change content session. This API must be used if Audio Language value is available from application.
+	self.reportPlayerAudioLang = function(videoNode as object, audioLang as string)
+    self=m
+    self.log(videoNode, "ConvivaClient reportPlayerAudioLang")
+    convivaTask = self.getConvivaTask(videoNode)
+    if convivaTask <> invalid
+      event = {}
+      event.audioLang = audioLang
+      event.type = "ConvivaContentAudioLang"
+      convivaTask.callFunc("dispatchEvent", event)
+    end if
+	end function
+
+    ' Reports Subtitle Language change content session. This API must be used if Subtitle Language value is available from application.
+	self.reportPlayerSubtitleLang = function(videoNode as object, subtitleLang as string)
+    self=m
+    self.log(videoNode, "ConvivaClient reportPlayerSubtitleLang")
+    convivaTask = self.getConvivaTask(videoNode)
+    if convivaTask <> invalid
+      event = {}
+      event.subtitleLang = subtitleLang
+      event.type = "ConvivaContentSubtitleLang"
+      convivaTask.callFunc("dispatchEvent", event)
+    end if
+	end function
+
+      ' Reports CC Language change content session. This API must be used if CC Language value is available from application.
+	self.reportPlayerCCLang = function(videoNode as object, ccLang as string)
+    self=m
+    self.log(videoNode, "ConvivaClient reportPlayerCCLang")
+    convivaTask = self.getConvivaTask(videoNode)
+    if convivaTask <> invalid
+      event = {}
+      event.ccLang = ccLang
+      event.type = "ConvivaContentCCLang"
+      convivaTask.callFunc("dispatchEvent", event)
+    end if
+	end function
+
   ' Monitors & integrates ad insights with Roku ads framework (CSAI only)
     self.monitorRaf = function(videoNode as object, rafInstance as object)
         self = m
@@ -579,8 +618,8 @@ function ConvivaClientInstance(settings as object)
             yoSpaceSession.RegisterPlayer(player)
         else if yoSpaceSession.AddAnalyticObserver <> invalid
             player    = {}
-            player["OnAdvertBreakStart"]    = self.OnYoSpaceAdBreakStart
-            player["OnAdvertStart"]     = self.OnYoSpaceAdStart
+            player["OnAdvertBreakStart"]    = self.OnYoSpaceAdBreakStartV3
+            player["OnAdvertStart"]     = self.OnYoSpaceAdStartV3
             player["OnAdvertEnd"]       = self.OnYoSpaceAdEnd
             player["OnAdvertBreakEnd"]      = self.OnYoSpaceAdBreakEnd
             yoSpaceSession.AddAnalyticObserver(YoAnalyticEventObserver(player, self))
@@ -762,10 +801,7 @@ end function
       adInfo.sequence = "NA"
     end if
     adInfo.technology = "Server Side"
-    adInfo.position = "NA"
-    adInfo.mediaFileApiFramework = "NA"
     adInfo.adManagerName = "Google IMA DAI SDK"
-    adInfo.adManagerVersion = "3.39.0"
     adInfo.sessionStartEvent = ""+adData.eventType
     adInfo.advertiser = ""+adData.advertisername
     adInfo.moduleName = "GD"
@@ -885,6 +921,24 @@ end function
 
     adMetadata = {}
     adMetadata.SetModeCaseSensitive()
+    if breakInfo <> invalid
+      if breakInfo.GetStart() = 0 and self.convivaYoSpaceSession.GetSessionProperties() <> invalid and self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession"
+            adMetadata["podPosition"] = "Pre-roll"
+        else
+            adMetadata["podPosition"] = "Mid-roll"
+        end if
+        adMetadata["podDuration"] = Int(breakInfo.GetDuration())
+    end if
+
+    self.reportAdBreakStarted(self.convivaYoSpaceVideoNode, self.AD_TYPE.SERVER_SIDE, adMetadata)
+  end function
+
+  self.OnYoSpaceAdBreakStartV3 = function (breakInfo = invalid as Dynamic)
+    globalAA = getGlobalAA()
+    self = globalAA.ConvivaClient
+
+    adMetadata = {}
+    adMetadata.SetModeCaseSensitive()
     'breakInfo.GetPosition() api introduced in v3 but api returns unknown always
     ' and if we use old way to determine pod position there we cannot determine postroll ads
     ' so we are using old api to get pod position untill new api is resolved
@@ -914,6 +968,89 @@ end function
   end function
 
   self.OnYoSpaceAdStart = function (adData = invalid as Dynamic)
+    globalAA = getGlobalAA()
+    self = globalAA.ConvivaClient
+    adInfo = {}
+    adInfo.SetModeCaseSensitive()
+    if self.convivaYoSpaceSession.GetSessionProperties() <> invalid
+      advert = self.convivaYoSpaceSession.GetCurrentAdvert()
+      if (advert <> invalid)
+          ' if (advert.GetAdvert() <> invalid)
+          adInfo.adid = advert.GetAdvertID()
+          adSystem = advert.GetProperty("AdSystem")
+          if(adSystem <> invalid) then
+              adInfo.adsystem = adSystem.GetValue()
+          else
+              adInfo.adsystem = "NA"
+          end if
+          adInfo.assetName = advert.GetProperty("AdTitle").getValue()
+          ' adInfo.advertiser = advert.GetAdvert().GetAdvertiser()
+          if advert.GetProperty("Advertiser") <> invalid
+            adInfo.advertiser = advert.GetProperty("Advertiser").getValue()
+          end if
+          ' CSR-4960 fix for sequence
+          if advert.GetSequence() <> invalid
+            adInfo.sequence = advert.GetSequence().ToStr()
+          end if
+          ' FR-2315
+          lineage = advert.GetLineage()
+          if (lineage <> invalid) then
+            if( lineage.GetAdId() <> invalid) then
+                adInfo.firstAdId = lineage.GetAdId()
+            else
+                adInfo.firstAdId = "NA"
+            end if
+            if( lineage.GetAdSystem() <> invalid) then
+                adInfo.firstAdSystem = lineage.GetAdSystem()
+            else
+                adInfo.firstAdSystem = "NA"
+            end if
+            if( lineage.GetCreativeId() <> invalid) then
+                adInfo.firstCreativeId = lineage.GetCreativeId()
+            else
+                adInfo.firstCreativeId = "NA"
+            end if
+          end if
+          ' end if
+          if advert.isFiller() = true
+              adInfo.isSlate = "true"
+          else
+              adInfo.isSlate = "false"
+          end if
+
+          if (advert.getStart()<> invalid and advert.getStart() = 0 and self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession")
+              adInfo.position = "Pre-roll"
+          else
+              adInfo.position = "Mid-roll"
+          end if
+          if (advert.getLinearCreative().GetCreativeIdentifier() <> invalid)
+            adInfo.creativeId = advert.getLinearCreative().GetCreativeIdentifier()
+          else
+            adInfo.creativeId = "NA"
+          end if
+          adInfo.contentLength = Int(advert.GetDuration())
+
+      end if
+      if self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession"
+          adInfo.isLive = false
+      else
+          adInfo.isLive = true
+      end if
+    end if
+    ' adInfo.streamUrl = self.convivaYoSpaceSession.GetMasterPlaylist()
+    adInfo.streamUrl = self.convivaYoSpaceSession.GetPlaybackUrl()
+    adInfo.mediaFileApiFramework = "NA"
+    adInfo.technology = "Server Side"
+    ' adInfo.streamFormat = self.convivaYoSpaceSession.GetSessionProperties().GetStreamType() 'if you uncomment this line you will get crash.
+    adInfo.adManagerName = "YoSpace SDK"
+    ' adInfo.adManagerVersion = self.convivaYoSpaceSession.GetVersion()
+    adInfo.adManagerVersion = self.convivaYoSpaceSession.__version
+    adInfo.adstitcher = "YoSpace CSM"
+    adInfo.moduleName = "YS"
+    self.reportAdStart(self.convivaYoSpaceVideoNode, adInfo)
+  end function
+
+  self.OnYoSpaceAdStartV3 = function (adData = invalid as Dynamic)
     globalAA = getGlobalAA()
     self = globalAA.ConvivaClient
     adInfo = {}
@@ -995,7 +1132,7 @@ end function
         adInfo.isLive = true
       end if
     end if
-    adInfo.streamUrl = self.convivaYoSpaceSession.getPlaybackurl().toStr()
+    adInfo.streamUrl = self.convivaYoSpaceSession.GetStreamUrl().ToString()
     adInfo.mediaFileApiFramework = "NA"
     adInfo.technology = "Server Side"
     ' adInfo.streamFormat = self.convivaYoSpaceSession.GetStreamType()

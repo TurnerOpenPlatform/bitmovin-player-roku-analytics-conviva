@@ -85,8 +85,7 @@ sub startMonitor()
     m.LivePass.adStart()
   'end if
 
-
-  while true
+  while(true)
     if m.LivePass <> invalid
       msg = ConvivaWait(0, m.port, invalid)
     else
@@ -265,6 +264,18 @@ sub startMonitor()
         else if eventData.type = "ConvivaUserPreferenceForDataDeletion"
           if m.LivePass <> invalid
             m.LivePass.setUserPreferenceForDataDeletion(eventData.prefs)
+          end if
+        else if eventData.type = "ConvivaContentAudioLang"
+          if m.LivePass <> invalid
+            m.LivePass.setAudioLang(m.contentSession, eventData.audioLang)
+          end if
+        else if eventData.type = "ConvivaContentSubtitleLang"
+          if m.LivePass <> invalid
+            m.LivePass.setSubtitleLang(m.contentSession, eventData.subtitleLang)
+          end if
+        else if eventData.type = "ConvivaContentCCLang"
+          if m.LivePass <> invalid
+            m.LivePass.setCCLang(m.contentSession, eventData.ccLang)
           end if
         else
           ' Method is common to all integrations using ConvivaClient APIs for ad insights integration'

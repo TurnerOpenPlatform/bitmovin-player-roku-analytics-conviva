@@ -275,7 +275,12 @@ function ConvivaLivePassInitWithSettings (apiKey as object, convivaSettings=inva
 
     self.apiKey  = apiKey
 
-    self.instanceId = self.utils.randInt()
+    iid = self.utils.readLocalData("iid")
+    if iid = ""
+      self.instanceId = self.utils.randInt()
+    else
+      self.instanceId = iid.toInt()
+    end if
 
     self.clId    = self.utils.readLocalData ("clientId")
     if self.clId = "" then
@@ -1007,6 +1012,46 @@ function ConvivaLivePassInitWithSettings (apiKey as object, convivaSettings=inva
         end if
     end function
 
+
+    self.setAudioLang = function (session as object, audioLang as string) as void
+        self = m
+        if self.utils = invalid then
+            print "ERROR: called setAudioLang on uninitialized LivePass"
+            return
+        end if
+        self.utils.log("setAudioLang")
+        if self.checkCurrentSession(session)
+            self.log("Audio language change requested from the application")
+            session.cwsSessOnAudioLangChange(audioLang)
+        end if
+    end function
+
+    self.setSubtitleLang = function (session as object, subtitleLang as string) as void
+        self = m
+        if self.utils = invalid then
+            print "ERROR: called setSubtitleLang on uninitialized LivePass"
+            return
+        end if
+        self.utils.log("setSubtitleLang")
+        if self.checkCurrentSession(session)
+            self.log("Subtitle language change requested from the application")
+            session.cwsSessOnSubtitleLangChange(subtitleLang)
+        end if
+    end function
+
+    self.setCCLang = function (session as object, ccLang as string) as void
+        self = m
+        if self.utils = invalid then
+            print "ERROR: called setCCLang on uninitialized LivePass"
+            return
+        end if
+        self.utils.log("setCCLang")
+        if self.checkCurrentSession(session)
+            self.log("Caption language change requested from the application")
+            session.cwsSessOnCCLangChange(ccLang)
+        end if
+    end function
+
     ' Stores user preferences for data collection'
     self.setUserPreferenceForDataCollection = function(prefs as object) as void
       self = m
@@ -1114,6 +1159,9 @@ function cwsConvivaSession(cws as object, screen as object, contentInfo as objec
     self.pht = -1
     self.fw = invalid
     self.cws = cws
+    self.defaultAudioTrack = invalid
+    self.activeSubtitleTrack = invalid
+    self.defaultSubtitleTrack = invalid
     ' DE-2710: Create a copy of session.evs instead of directly copying into hb
     self.evs = []
     self.sessionType = sessionType
@@ -1167,7 +1215,7 @@ function cwsConvivaSession(cws as object, screen as object, contentInfo as objec
 
     cdnRequest = function (sess as dynamic)
         ' Fire CDN head request only if it is enabled from backend in HB config'
-        if sess.cfg.csi_en = true then
+        if sess.cfg.csi_en = true and sess.cdnServerStreamUrl <> invalid then
             print "CSI_EN is set to true, firing CDN head request"
             sess.utils.sendCDNRequest(sess.cdnServerStreamUrl, sess.cdnCallback, sess)
         end if
@@ -2301,6 +2349,108 @@ function cwsConvivaSession(cws as object, screen as object, contentInfo as objec
         end if
     end function
 
+    self.sendStateChangeEventForSubtitle = function(activeSubtitleTrack as dynamic) as void
+        self = m
+        ' getting languageStringToUpdate
+        languageStringToUpdate  = self.getLangStringToUpdate(activeSubtitleTrack)
+        if activeSubtitleTrack.TrackName <> invalid and activeSubtitleTrack.TrackName <> "" and languageStringToUpdate <> ""
+            ' check if string contains eia608/eia708
+                if (self.isClosedCaption(self.activeSubtitleTrack.TrackName))
+                ' update closed caption
+                self.log("Caption language change requested from the Conviva Library")
+                self.cwsSessOnCCLangChange(languageStringToUpdate)
+                else
+                ' update Subtitle
+                self.log("Subtitle language change requested from the Conviva Library")
+                self.cwsSessOnSubtitleLangChange(languageStringToUpdate)
+                end if
+        end if
+    end function
+
+    self.isClosedCaption = function (trackName as string) as boolean
+        self = m
+        if (trackName.Instr("eia608") > -1)  or (trackName.Instr("eia708") > -1) or (trackName.Instr("ism") > -1) or (trackName.Instr("mkv") > -1)
+            return true
+        else if (trackName.Instr("dvb") > -1) and (trackName.Instr("_sdh") > -1)
+            return true
+        else if (trackName.Instr("caption") > -1) or (trackName.Instr("CAPTION") > -1) or (trackName.Instr("CC") > -1) or ( trackName.Instr("cc") > -1)
+            return true
+        else
+            return false
+        end if
+    end function
+
+    self.getLangStringToUpdate = function(activeSubtitleTrack as dynamic) as string
+        self = m
+        languageStringToUpdate = ""
+        if (activeSubtitleTrack.Language <> invalid and activeSubtitleTrack.Language <> "") and (activeSubtitleTrack.Description <> invalid and activeSubtitleTrack.Description <> "")
+            languageStringToUpdate = "["+ activeSubtitleTrack.Language + "]:" + activeSubtitleTrack.Description
+        else if activeSubtitleTrack.Language <> invalid and activeSubtitleTrack.Language <> ""
+            languageStringToUpdate = activeSubtitleTrack.Language
+        else if activeSubtitleTrack.Description <> invalid and activeSubtitleTrack.Description <> ""
+            languageStringToUpdate = activeSubtitleTrack.Description
+        endif
+        return languageStringToUpdate
+    end function
+
+    self.getAudioLangStringToUpdate = function(activeAudioTrack as dynamic) as string
+        self = m
+        languageStringToUpdate = ""
+        if (activeAudioTrack.Language <> invalid and activeAudioTrack.Language <> "") and (activeAudioTrack.Name <> invalid and activeAudioTrack.Name <> "")
+            languageStringToUpdate = "["+ activeAudioTrack.Language + "]:" + activeAudioTrack.Name
+        else if activeAudioTrack.Language <> invalid and activeAudioTrack.Language <> ""
+            languageStringToUpdate = activeAudioTrack.Language
+        else if activeAudioTrack.Name <> invalid and activeAudioTrack.Name <> ""
+            languageStringToUpdate = activeAudioTrack.Name
+        endif
+        return languageStringToUpdate
+    end function
+
+    self.cwsSessOnAudioLangChange = function (newAudioLang as string) as void
+        self = m
+        if self = invalid then
+            print("Cannot change audio Language for invalid session")
+            return
+        end if
+
+        evt = self.psm.cwsPsmOnAudioLangChange(newAudioLang)
+        if evt <> invalid then
+            self.cwsSessSendEvent(evt.t, evt)
+        end if
+    end function
+
+    self.cwsSessOnSubtitleLangChange = function (newSubtitleLang as string) as void
+        self = m
+        if self = invalid then
+            print("Cannot change subtitle Language for invalid session")
+            return
+        end if
+
+        if self.psm.ccLang <> invalid and self.psm.ccLang <> "off" and newSubtitleLang <> "off"
+            self.cwsSessOnCCLangChange("off")
+        end if
+        evt = self.psm.cwsPsmOnSubtitleLangChange(newSubtitleLang)
+        if evt <> invalid then
+            self.cwsSessSendEvent(evt.t, evt)
+        end if
+    end function
+
+    self.cwsSessOnCCLangChange = function (newCCLang as string) as void
+        self = m
+        if self = invalid then
+            print("Cannot change cc Language for invalid session")
+            return
+        end if
+
+        if self.psm.subtitleLang <> invalid and self.psm.subtitleLang <> "off" and newCCLang <> "off"
+            self.cwsSessOnSubtitleLangChange("off")
+        end if
+        evt = self.psm.cwsPsmOnCCLangChange(newCCLang)
+        if evt <> invalid then
+            self.cwsSessSendEvent(evt.t, evt)
+        end if
+    end function
+
     '
     ' Process a screen and node events of Roku Scene Graph
     '
@@ -2319,6 +2469,8 @@ function cwsConvivaSession(cws as object, screen as object, contentInfo as objec
                 else if info.isResume and info.isUnderrun = false
                     self.log("videoEvent: streamInfo isResume=true;isUnderrun=false;measuredBitrate="+stri(info.measuredBitrate)+";streamBitrate="+stri(info.streamBitrate)+";streamUrl="+info.streamUrl)
                 else if info.isResume = false and info.isUnderrun
+                    'Fix for CE-8000: When bandwidth is throttled very low, expected State change Buffering event goes missing, hence inducing Buffering State
+                    self.cwsSessOnStateChange(self.ps.buffering)
                     self.log("videoEvent: streamInfo isResume=false;isUnderrun=true;measuredBitrate="+stri(info.measuredBitrate)+";streamBitrate="+stri(info.streamBitrate)+";streamUrl="+info.streamUrl)
                 else
                     self.log("videoEvent: streamInfo isResume=false;isUnderrun=false;measuredBitrate="+stri(info.measuredBitrate)+";streamBitrate="+stri(info.streamBitrate)+";streamUrl="+info.streamUrl)
@@ -2467,7 +2619,98 @@ function cwsConvivaSession(cws as object, screen as object, contentInfo as objec
             '         self.cwsSessOnRenderFrameTotalChange(info.renderCount)
             '       end if
             '     end if
-
+            else if convivaSceneGraphVideoEvent.getField() = "availableAudioTracks" Then
+                if info <> invalid
+                    self.log("videoEvent: availableAudioTracks: " + formatJSON(info))
+                    if (self.defaultAudioTrack <> invalid) 'this only for autodetecting default language
+                        for each item in info
+                            if item.Track = self.defaultAudioTrack
+                            activeAudioTrack = item
+                            end if
+                        end for
+                        ' getting languageStringToUpdate
+                        languageStringToUpdate  = self.getAudioLangStringToUpdate(activeAudioTrack)
+                        if languageStringToUpdate <> ""
+                            self.log("Audio language change requested from the Conviva Library")
+                            self.cwsSessOnAudioLangChange(languageStringToUpdate)
+                            self.defaultAudioTrack = invalid
+                        end if
+                    end if
+                end if
+            else if convivaSceneGraphVideoEvent.getField() = "currentAudioTrack" Then
+                if info <> invalid
+                    activeAudioTrack = invalid
+                    self.log("videoEvent: currentAudioTrack "+ formatJSON(info))
+                    if self.video.availableAudioTracks <> invalid
+                        for each item in self.video.availableAudioTracks
+                            if item.Track = info
+                            activeAudioTrack = item
+                            end if
+                        end for
+                        if activeAudioTrack <> invalid
+                            languageStringToUpdate  = self.getAudioLangStringToUpdate(activeAudioTrack)
+                            if languageStringToUpdate <> ""
+                                self.log("Audio language change requested from the Conviva Library")
+                                self.cwsSessOnAudioLangChange(languageStringToUpdate)
+                            end if
+                        end if
+                    else
+                        self.defaultAudioTrack = info
+                    end if
+                end if
+            else if convivaSceneGraphVideoEvent.getField() = "availableSubtitleTracks" Then
+                if info <> invalid
+                    self.log("videoEvent: availableSubtitleTracks " + formatJSON(info))
+                    if (self.defaultSubtitleTrack <> invalid) 'this only for autodetecting default language. because on launch, currentSubtitleTrack comes before availableSubtitleTracks
+                        for each item in info
+                            if item.TrackName = self.defaultSubtitleTrack
+                                self.activeSubtitleTrack = item
+                            end if
+                        end for
+                        if self.activeSubtitleTrack <> invalid and self.captionsMode <> "Off" 
+                            self.sendStateChangeEventForSubtitle(self.activeSubtitleTrack)
+                        end if
+                        self.defaultSubtitleTrack = invalid
+                    end if
+                end if
+            else if convivaSceneGraphVideoEvent.getField() = "currentSubtitleTrack" Then
+                if self.devinfo <> invalid
+                    self.captionsMode = self.devinfo.GetCaptionsMode()
+                end if
+                if info <> invalid
+                    self.log("videoEvent: currentSubtitleTrack "+ formatJSON(info))
+                    if self.video.availableSubtitleTracks <> invalid 
+                        for each item in self.video.availableSubtitleTracks
+                            if item.TrackName = info
+                                self.activeSubtitleTrack = item
+                            end if
+                        end for
+                        if self.activeSubtitleTrack <> invalid and self.captionsMode <> "Off"
+                            self.sendStateChangeEventForSubtitle(self.activeSubtitleTrack)
+                        end if
+                    else
+                        self.defaultSubtitleTrack = info
+                    end if
+                end if
+            else if convivaSceneGraphVideoEvent.getField() = "globalCaptionMode" Then
+                if info <> invalid
+                    self.log("GlobalCaptionMode: INFO:" + formatJSON(info))
+                    if info = "Off" 
+                        if self.psm.subtitleLang <> invalid and self.psm.subtitleLang <> "off"
+                            self.log("Subtitle language change requested from the Conviva Library")
+                            self.cwsSessOnSubtitleLangChange("off")
+                        end if
+                        if self.psm.ccLang <> invalid and self.psm.ccLang <> "off"
+                            self.log("Caption language change requested from the Conviva Library")
+                            self.cwsSessOnCCLangChange("off")
+                        end if
+                    else
+                        if self.activeSubtitleTrack <> invalid
+                            print "globalCaptionMode: self.activeSubtitleTrack" + formatJSON(self.activeSubtitleTrack)
+                            self.sendStateChangeEventForSubtitle(self.activeSubtitleTrack)
+                        end if
+                    end if
+                end if
             end if
         end if
     end function
@@ -2515,6 +2758,9 @@ function cwsConvivaPlayerState(sess as object) as object
 
     self.connType = invalid
     self.cdnServerIP = invalid
+    self.audioLang = invalid
+    self.subtitleLang = invalid
+    self.ccLang = invalid
     self.tags = {}
 
     self.cleanup = function () as void
@@ -2824,9 +3070,90 @@ function cwsConvivaPlayerState(sess as object) as object
         else if self.cdnServerIP = "null"
             data.delete("csi")
         end if
+        if self.audioLang <> invalid
+            data.al = self.audioLang
+        end if
+        if self.subtitleLang <> invalid
+            data.sl = self.subtitleLang
+        end if
+        if self.ccLang <> invalid
+            data.cal = self.ccLang
+        end if
 
         return data
     end function
+
+    self.cwsPsmOnAudioLangChange = function (newAudioLang as string) as object
+        self = m
+        if self.audioLang = newAudioLang then
+            return invalid
+        end if
+        if(type(newAudioLang) = "roString" or type(newAudioLang) = "String") and newAudioLang <> "" then
+            evt = {
+                t: "CwsStateChangeEvent",
+                new: {
+                    al: newAudioLang
+                }
+            }
+            if self.audioLang <> "" and self.audioLang <> invalid then
+                evt.old = {
+                    al: self.audioLang
+                }
+            end if
+            self.audioLang = newAudioLang
+            return evt
+        else
+            return invalid
+        end if
+    endfunction
+
+    self.cwsPsmOnSubtitleLangChange = function (newSubtitleLang as string) as object
+        self = m
+        if self.subtitleLang = newSubtitleLang then
+            return invalid
+        end if
+        if(type(newSubtitleLang) = "roString" or type(newSubtitleLang) = "String") and newSubtitleLang <> "" then
+            evt = {
+                t: "CwsStateChangeEvent",
+                new: {
+                    sl: newSubtitleLang
+                }
+            }
+            if self.subtitleLang <> "" and self.subtitleLang <> invalid then
+                evt.old = {
+                    sl: self.subtitleLang
+                }
+            end if
+            self.subtitleLang = newSubtitleLang
+            return evt
+        else
+            return invalid
+        end if
+    endfunction
+
+    self.cwsPsmOnCCLangChange = function (newCCLang as string) as object
+        self = m
+        if self.ccLang = newCCLang then
+            return invalid
+        end if
+        if(type(newCCLang) = "roString" or type(newCCLang) = "String") and newCCLang <> "" then
+            evt = {
+                t: "CwsStateChangeEvent",
+                new: {
+                    cal: newCCLang
+                }
+            }
+            if self.ccLang <> "" and self.ccLang <> invalid then
+                evt.old = {
+                    cal: self.ccLang
+                }
+            end if
+            self.ccLang = newCCLang
+            return evt
+        else
+            return invalid
+        end if
+    endfunction
 
     return self
 end function
@@ -3751,7 +4078,7 @@ End Function
 function cwsConvivaSettings() as object
     cfg = {}
     ' The next line is changed by set_versions
-    cfg.version = "3.4.5"
+    cfg.version = "3.5.1"
 
     cfg.enableLogging = false                      ' change to false to disable debugging output
     cfg.defaultHeartbeatInvervalMs = 20000         ' 20 sec HB interval
