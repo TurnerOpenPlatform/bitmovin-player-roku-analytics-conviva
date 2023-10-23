@@ -4131,14 +4131,19 @@ sub handleAdEvent(adData)
             if m.adSession = invalid
                 adTags = { }
                 adTags.SetModeCaseSensitive()
+                adTags["c3.ad.firstAdId"] = "NA"
+                adTags["c3.ad.firstCreativeId"] = "NA"
+                adTags["c3.ad.firstAdSystem"] = "NA"
                 if adData.assetName <> invalid and Len(adData.assetName.trim()) <> 0
                     assetName = adData.assetName
                 end if
                 if adData.adid <> invalid
                     adTags["c3.ad.id"] = adData.adid
+                    adTags["c3.ad.firstAdId"] = adData.adid
                 end if
                 if adData.adsystem <> invalid
                     adTags["c3.ad.system"] = adData.adsystem
+                    adTags["c3.ad.firstAdSystem"] = adData.adsystem
                 end if
                 if adData.mediaFileApiFramework <> invalid
                     adTags["c3.ad.mediaFileApiFramework"] = adData.mediaFileApiFramework
@@ -4164,6 +4169,7 @@ sub handleAdEvent(adData)
                 end if
                 if adData.creativeid <> invalid
                     adTags["c3.ad.creativeId"] = adData.creativeid
+                    adTags["c3.ad.firstCreativeId"] = adData.creativeid
                 end if
                 if adData.adManagerName <> invalid
                     adTags["c3.ad.adManagerName"] = adData.adManagerName
@@ -4217,14 +4223,19 @@ sub handleAdEvent(adData)
             'Create ad session by extracting metadata from ConvivaAdStart event data'
             adTags = { }
             adTags.SetModeCaseSensitive()
+            adTags["c3.ad.firstAdId"] = "NA"
+            adTags["c3.ad.firstCreativeId"] = "NA"
+            adTags["c3.ad.firstAdSystem"] = "NA"
             if adData.assetName <> invalid and Len(adData.assetName.trim()) <> 0
                 assetName = adData.assetName
             end if
             if adData.adid <> invalid
                 adTags["c3.ad.id"] = adData.adid
+                adTags["c3.ad.firstAdId"] = adData.adid
             end if
             if adData.adsystem <> invalid
                 adTags["c3.ad.system"] = adData.adsystem
+                adTags["c3.ad.firstAdSystem"] = adData.adsystem
             end if
             if adData.mediaFileApiFramework <> invalid
                 adTags["c3.ad.mediaFileApiFramework"] = adData.mediaFileApiFramework
@@ -4252,6 +4263,7 @@ sub handleAdEvent(adData)
             end if
             if adData.creativeid <> invalid
                 adTags["c3.ad.creativeId"] = adData.creativeid
+                adTags["c3.ad.firstCreativeId"] = adData.creativeid
             end if
             if adData.adManagerName <> invalid
                 adTags["c3.ad.adManagerName"] = adData.adManagerName
