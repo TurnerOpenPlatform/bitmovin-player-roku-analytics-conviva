@@ -922,12 +922,18 @@ end function
     adMetadata = {}
     adMetadata.SetModeCaseSensitive()
     if breakInfo <> invalid
-      if breakInfo.GetStart() = 0 and self.convivaYoSpaceSession.GetSessionProperties() <> invalid and self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession"
-            adMetadata["podPosition"] = "Pre-roll"
-        else
-            adMetadata["podPosition"] = "Mid-roll"
-        end if
-        adMetadata["podDuration"] = Int(breakInfo.GetDuration())
+      ad_position = self.convivaYoSpaceSession.GetCurrentAdBreak().getPosition()
+      if ad_position = "preroll"
+        adMetadata["podPosition"] = "Pre-roll"
+      else if ad_position = "midroll"
+        adMetadata["podPosition"] = "Mid-roll"
+      else if ad_position = "postroll"
+        adMetadata["podPosition"] = "Post-roll"
+      else
+        adMetadata["podPosition"] = ad_position
+      end if
+
+      adMetadata["podDuration"] = Int(breakInfo.GetDuration())
     end if
 
     self.reportAdBreakStarted(self.convivaYoSpaceVideoNode, self.AD_TYPE.SERVER_SIDE, adMetadata)
@@ -1018,11 +1024,17 @@ end function
               adInfo.isSlate = "false"
           end if
 
-          if (advert.getStart()<> invalid and advert.getStart() = 0 and self.convivaYoSpaceSession.GetSessionProperties()._CLASSNAME <> "YSLiveSession")
-              adInfo.position = "Pre-roll"
+          ad_position = self.convivaYoSpaceSession.GetCurrentAdBreak().getPosition()
+          if ad_position = "preroll"
+            adInfo.position = "Pre-roll"
+          else if ad_position = "midroll"
+            adInfo.position = "Mid-roll"
+          else if ad_position = "postroll"
+            adInfo.position = "Post-roll"
           else
-              adInfo.position = "Mid-roll"
+            adInfo.position = ad_position
           end if
+
           if (advert.getLinearCreative().GetCreativeIdentifier() <> invalid)
             adInfo.creativeId = advert.getLinearCreative().GetCreativeIdentifier()
           else
