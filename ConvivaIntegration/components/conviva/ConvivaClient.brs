@@ -415,7 +415,7 @@ function ConvivaClientInstance(settings as object)
         self.log(videoNode, "ConvivaClient reportAdBreakEnded")
 		if self.isVideoExists(videoNode)
   		convivaTask = self.getConvivaTask(videoNode)
-  		if convivaTask <> invalid
+    if convivaTask <> invalid and adBreakInfo <> invalid
   			adEvent = adBreakInfo
   			adEvent.type = "ConvivaPodEnd"
         adEvent.adType = adType
