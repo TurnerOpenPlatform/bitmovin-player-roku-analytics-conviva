@@ -407,26 +407,22 @@ function ConvivaClientInstance(settings as object)
     end if
 	end function
 
-    ' Report ad break ended to content sessions
-    ' If adType is client side, the API takes care of calling attachStreamer & adend LivePass APIs
-    ' Report Conviva.PodEnd custom event with adBreakInfo to content session'
-    self.reportAdBreakEnded = function(videoNode as object, adType as string, adBreakInfo as object)
-        self = m
+  ' Report ad break ended to content sessions
+  ' If adType is client side, the API takes care of calling attachStreamer & adend LivePass APIs
+  ' Report Conviva.PodEnd custom event with adBreakInfo to content session'
+	self.reportAdBreakEnded = function(videoNode as object, adType as string, adBreakInfo as object)
+        self=m
         self.log(videoNode, "ConvivaClient reportAdBreakEnded")
-        if self.isVideoExists(videoNode)
-            convivaTask = self.getConvivaTask(videoNode)
-            if convivaTask <> invalid and adBreakInfo <> invalid
-                adEvent = adBreakInfo
-                adEvent.type = "ConvivaPodEnd"
-                if LCase(Type(adType)) <> "rostring" and LCase(Type(adType)) <> "string"
-                    adType = "Server Side"
-                    print "[TOP] - AdType is changed to " + adType
-                end if
-                adEvent.adType = adType
-                convivaTask.callFunc("dispatchEvent", adEvent)
-            end if
-        end if
-    end function
+		if self.isVideoExists(videoNode)
+  		convivaTask = self.getConvivaTask(videoNode)
+    if convivaTask <> invalid and adBreakInfo <> invalid
+  			adEvent = adBreakInfo
+  			adEvent.type = "ConvivaPodEnd"
+        adEvent.adType = adType
+  			convivaTask.callFunc("dispatchEvent", adEvent)
+  		end if
+    end if
+	end function
 
   ' TBD - incomplete implementation - Will never be used. Created the API to keep it consistent across all platforms
 	self.reportPlayerState = function( videoNode as object, playerState as string )
