@@ -4191,6 +4191,10 @@ sub handleAdEvent(adData)
                     adTags["c3.ad.firstAdId"] = adData.firstAdId
                 end if
 
+                if m?.ConvivaLpObj?.session?.contentInfo?.tags <> invalid
+                    ' This if statement is a custom change for MML to see viewMode value in TouchStone when Adbreak is started.
+                    adTags.append(m.ConvivaLpObj.session.contentInfo.tags)
+                end if
                 adInfo = ConvivaContentInfo(assetName, adTags)
                 if adData.streamUrl <> Invalid or adData.streamUrl = ""
                     adInfo.streamUrl = adData.streamUrl
@@ -4288,7 +4292,10 @@ sub handleAdEvent(adData)
             if adData.firstAdId <> invalid
                 adTags["c3.ad.firstAdId"] = adData.firstAdId
             end if
-
+            if m?.ConvivaLpObj?.session?.contentInfo?.tags <> invalid
+                ' This if statement is a custom change for MML to see viewMode value in TouchStone when Adbreak is started.
+                adTags.append(m.ConvivaLpObj.session.contentInfo.tags)
+            end if
             adInfo = ConvivaContentInfo(assetName, adTags)
             if adData.streamUrl <> Invalid or adData.streamUrl = ""
                 adInfo.streamUrl = adData.streamUrl
